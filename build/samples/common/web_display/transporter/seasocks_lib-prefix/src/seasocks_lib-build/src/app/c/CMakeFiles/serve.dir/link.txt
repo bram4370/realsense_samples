@@ -1,0 +1,1 @@
+/usr/bin/c++    -std=c++1y   CMakeFiles/serve.dir/serve.cpp.o  -o serve -rdynamic ../../main/c/libseasocks.a -lpthread 

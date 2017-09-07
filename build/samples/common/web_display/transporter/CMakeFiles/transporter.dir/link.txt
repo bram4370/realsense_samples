@@ -1,0 +1,2 @@
+/usr/bin/ar qc libtransporter.a  CMakeFiles/transporter.dir/transporter.cpp.o
+/usr/bin/ranlib libtransporter.a

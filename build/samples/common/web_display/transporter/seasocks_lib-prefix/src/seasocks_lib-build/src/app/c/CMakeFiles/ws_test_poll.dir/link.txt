@@ -1,0 +1,1 @@
+/usr/bin/c++    -std=c++1y   CMakeFiles/ws_test_poll.dir/ws_test_poll.cpp.o  -o ws_test_poll -rdynamic ../../main/c/libseasocks.a -lpthread 

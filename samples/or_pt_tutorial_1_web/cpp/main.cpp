@@ -10,6 +10,11 @@
 #include "pt_web_display.hpp"
 #include "or_console_display.hpp"
 #include "or_web_display.hpp"
+#include <librealsense/rs.hpp>
+#include <cstdio>
+#include <chrono>
+#include <fstream>
+#include <string>
 
 using namespace std;
 using namespace rs::core;
@@ -62,104 +67,103 @@ void processing_OR(correlated_sample_set or_sample_set, or_video_module_impl* im
     is_or_processing_frame = false;
 }
 
-int main(int argc,char* argv[])
+int main() try
 {
-    rs::core::status st;
-    pt_utils pt_utils;
+    string file_name = "frame";
+    file_name.append(1)
+    std::ofstream ofs (file_name.append(".csv"), std::ofstream::out);
 
-    rs::core::image_info colorInfo,depthInfo;
-    rs::core::video_module_interface::actual_module_config actualModuleConfig;
-    rs::person_tracking::person_tracking_video_module_interface* ptModule = nullptr;
-    rs::object_recognition::or_video_module_impl impl;
-    rs::object_recognition::or_data_interface* or_data = nullptr;
-    rs::object_recognition::or_configuration_interface* or_configuration = nullptr;
+    ofs << "lorem ipsum";
 
-    cout << endl << "Initializing Camera, Object Recognition and Person Tracking modules" << endl;
-    if(pt_utils.init_camera(colorInfo,depthInfo,actualModuleConfig,impl,&or_data,&or_configuration) != rs::core::status_no_error)
+    ofs.close();
+
+    std::ofstream ofs (file_name.append("1.csv"), std::ofstream::out);
+
+    ofs << "lorem ipsum";
+
+    ofs.close();
+    // Create a context object. This object owns the handles to all connected realsense devices.
+    rs::context ctx;
+    if(ctx.get_device_count() == 0) return EXIT_FAILURE;
+
+    // This tutorial will access only a single device, but it is trivial to extend to multiple devices
+    rs::device * dev = ctx.get_device(0);
+
+    // Configure depth to run at VGA resolution at 30 frames per second
+    dev->enable_stream(rs::stream::depth, 640, 480, rs::format::z16, 30);
+
+    dev->start();
+
+    // Determine depth value corresponding to one meter
+    uint16_t one_meter = static_cast<uint16_t>(1.0f / dev->get_depth_scale());
+    uint16_t centimeter = one_meter/100+1;
+    uint16_t buffer[480][640][5];
+    while(true)
     {
-        cerr << "Error: Device is null." << endl << "Please connect a RealSense device and restart the application" << endl;
-        return -1;
-    }
-    pt_utils.init_person_tracking(&ptModule);
+        std::this_thread::sleep_for(std::chrono::seconds(5));
+        // This call waits until a new coherent set of frames is available on a device
+        // Calls to get_frame_data(...) and get_frame_timestamp(...) on a device will return stable values until wait_for_frames(...) is called
+        for(int f=0;f<5; ++f){
+            dev->wait_for_frames();
+            // Retrieve depth data, which was previously configured as a 640 x 480 image of 16-bit depth values
+            const uint16_t * depth_frame = reinterpret_cast<const uint16_t *>(dev->get_frame_data(rs::stream::depth));
 
-    //Person Tracking Configuration. Set tracking mode to 0
-    ptModule->QueryConfiguration()->QueryTracking()->Enable();
-    ptModule->QueryConfiguration()->QueryTracking()->SetTrackingMode((Intel::RealSense::PersonTracking::PersonTrackingConfiguration::TrackingConfiguration::TrackingMode)0);
-    if(ptModule->set_module_config(actualModuleConfig) != rs::core::status_no_error)
-    {
-        cerr<<"error : failed to set the enabled module configuration" << endl;
-        return -1;
-    }
-
-    //Object Recognition Configuration
-    //Set mode to localization
-    or_configuration->set_recognition_mode(rs::object_recognition::recognition_mode::LOCALIZATION);
-    //Set the localization mechnizm to use CNN
-    or_configuration->set_localization_mechanism(rs::object_recognition::localization_mechanism::CNN);
-    //Ignore all objects under 0.7 probabilty (confidence)
-    or_configuration->set_recognition_confidence(0.7);
-    //Enabling object center feature
-    or_configuration->enable_object_center_estimation(true);
-
-    st = or_configuration->apply_changes();
-    if (st != rs::core::status_no_error)
-        return st;
-
-    //Launch GUI
-    string sample_name = argv[0];
-    // Create console view
-    pt_console_view = move(console_display::make_console_pt_display());
-    or_console_view = move(console_display::make_console_or_display());
-    // Create and start remote(Web) view
-    or_web_view = move(web_display::make_or_web_display(sample_name, 8000, true));
-    pt_web_view = move(web_display::make_pt_web_display(sample_name, 8000, true));
-
-
-    cout << endl << "-------- Press Esc key to exit --------" << endl << endl;
-
-    while (!pt_utils.user_request_exit())
-    {
-        //Get next frame
-        rs::core::correlated_sample_set* sample_set = pt_utils.get_sample_set(colorInfo,depthInfo);
-        rs::core::correlated_sample_set* sample_set_pt = pt_utils.get_sample_set(colorInfo,depthInfo);
-
-        //Increment reference count of images at sample set
-        for (int i = 0; i < static_cast<uint8_t>(rs::core::stream_type::max); ++i)
-        {
-            if (sample_set_pt->images[i] != nullptr)
+            // Print a simple text-based representation of the image, by breaking it into 10x20 pixel regions and and approximating the coverage of pixels within one meter
+            uint16_t buf;
+            printf("%i",one_meter);
+            for(int y=0; y<480; ++y)
             {
-                sample_set_pt->images[i]->add_ref();
+                for(int x=0; x<640; ++x)
+                {
+                    buf=*depth_frame;
+                    buffer[y][x][f]=((buf)/centimeter);
+                    *depth_frame++;
+                }
             }
         }
-
-        //Draw Color frames
-        auto colorImage = (*sample_set)[rs::core::stream_type::color];
-        pt_web_view->on_rgb_frame(10, colorImage->query_info().width, colorImage->query_info().height, colorImage->query_data());
-
-        //Run OR in a separate thread. Update GUI with the result
-        if (!is_or_processing_frame)         // If we aren't already processing or for a frame:
-        {
-            is_or_processing_frame = true;
-            std::thread recognition_thread(processing_OR, *sample_set,
-                                           &impl, or_data, or_configuration);
-            recognition_thread.detach();
+        for(int f = 0; f<5; f++){
+            printf("Frame %i \n", f);
+            for(int i=0;i<480;i++){
+                for(int j=0;j<640;j++){
+                    printf("%i ", buffer[i][j][f]);
+                }
+                printf("\n");
+                memset(buffer[i],0,640*sizeof(uint16_t));
+            }
+            printf("\n\n\n");
         }
 
-        //Run Person Tracking
-        if (ptModule->process_sample_set(*sample_set_pt) != rs::core::status_no_error)
-        {
-            cerr << "error : failed to process sample" << endl;
-            continue;
+
+        printf("Average frame \n");
+        for(int i=0;i<480;i++){
+            for(int j=0;j<640;j++){
+                uint16_t sum = 0;
+                uint16_t size = 0;
+                for(int f=0;f<5;f++){
+                    if(buffer[i][j][f] > 0){
+                        sum += buffer[i][j][f];
+                        size++;
+                    }
+                }
+                if(size==0){
+                    printf("%i ", 0);
+                }else{
+                    printf("%i ", (sum/size));
+                }
+            }
+            printf("\n");
+            memset(buffer[i],0,640*sizeof(uint16_t));
         }
 
-        //Update GUI with PT result
-        pt_console_view->on_person_info_update(ptModule);
-        pt_web_view->on_PT_tracking_update(ptModule);
-
+        printf("STOP \n\n\n");
     }
-
-    pt_utils.stop_camera();
-    actualModuleConfig.projection->release();
-
-    return 0;
+    
+    return EXIT_SUCCESS;
+}
+catch(const rs::error & e)
+{
+    // Method calls against librealsense objects may throw exceptions of type rs::error
+    printf("rs::error was thrown when calling %s(%s):\n", e.get_failed_function().c_str(), e.get_failed_args().c_str());
+    printf("    %s\n", e.what());
+    return EXIT_FAILURE;
 }

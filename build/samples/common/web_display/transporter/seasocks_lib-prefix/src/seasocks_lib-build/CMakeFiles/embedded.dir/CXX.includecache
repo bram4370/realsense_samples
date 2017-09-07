@@ -1,0 +1,20 @@
+#IncludeRegexLine: ^[ 	]*#[ 	]*(include|import)[ 	]*[<"]([^">]+)([">])
+
+#IncludeRegexScan: ^.*$
+
+#IncludeRegexComplain: ^$
+
+#IncludeRegexTransform: 
+
+/home/bramubuntu/realsense_samples/build/samples/common/web_display/transporter/seasocks_lib-prefix/src/seasocks_lib-build/Embedded.cpp
+internal/Embedded.h
+/home/bramubuntu/realsense_samples/build/samples/common/web_display/transporter/seasocks_lib-prefix/src/seasocks_lib-build/internal/Embedded.h
+string
+-
+unordered_map
+-
+
+/home/bramubuntu/realsense_samples/samples/common/web_display/transporter/seasocks/src/main/c/internal/Embedded.h
+string
+-
+

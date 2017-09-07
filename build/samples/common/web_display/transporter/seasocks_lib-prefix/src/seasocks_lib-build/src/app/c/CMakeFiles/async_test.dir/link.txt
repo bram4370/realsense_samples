@@ -1,0 +1,1 @@
+/usr/bin/c++    -std=c++1y   CMakeFiles/async_test.dir/async_test.cpp.o  -o async_test -rdynamic ../../main/c/libseasocks.a -lpthread 

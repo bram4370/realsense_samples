@@ -1,0 +1,1 @@
+cmd='/usr/bin/cmake;-DCMAKE_INSTALL_PREFIX=/home/bramubuntu/realsense_samples/build/samples/common/web_display/transporter/seasocks;-GUnix Makefiles;/home/bramubuntu/realsense_samples/samples/common/web_display/transporter/seasocks'

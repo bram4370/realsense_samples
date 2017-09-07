@@ -1,0 +1,2 @@
+/usr/bin/ar qc libweb_display.a  
+/usr/bin/ranlib libweb_display.a
